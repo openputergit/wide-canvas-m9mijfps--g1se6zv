@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Database</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const API_KEY = 'YOUR_TMDB_API_KEY'; // Replace with your TMDB API key
+        const BASE_URL = 'https://api.themoviedb.org/3';
+        const IMG_PATH = 'https://image.tmdb.org/t/p/w1280';
+
+        function App() {
+            const [movies, setMovies] = React.useState([]);
+            const [featuredMovies, setFeaturedMovies] = React.useState([]);
+            const [currentFeatured, setCurrentFeatured] = React.useState(0);
+            const [selectedMovie, setSelectedMovie] = React.useState(null);
+            const [section, setSection] = React.useState('popular');
+            const [searchTerm, setSearchTerm] = React.useState('');
+
+            React.useEffect(() => {
+                getMovies('popular');
+                getFeaturedMovies();
+            }, []);
+
+            React.useEffect(() => {
+                const interval = setInterval(() => {
+                    setCurrentFeatured(prev => (prev + 1) % featuredMovies.length);
+                }, 3000);
+                return () => clearInterval(interval);
+            }, [featuredMovies]);
+
+            async function getMovies(type) {
+                const url = `${BASE_URL}/movie/${type}?api_key=${API_KEY}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                setMovies(data.results);
+                setSection(type);
+            }
+
+            async function getFeaturedMovies() {
+                const url = `${BASE_URL}/movie/now_playing?api_key=${API_KEY}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                setFeaturedMovies(data.results.slice(0, 5));
+            }
+
+            async function searchMovies(term) {
+                if (term.trim() === '') {
+                    getMovies('popular');
+                    return;
+                }
+                const url = `${BASE_URL}/search/movie?api_key=${API_KEY}&query=${term}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                setMovies(data.results);
+            }
+
+            async function getMovieDetails(id) {
+                const url = `${BASE_URL}/movie/${id}?api_key=${API_KEY}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                setSelectedMovie(data);
+            }
+
+            return (
+                <div className="container mx-auto px-4">
+                    {/* Header */}
+                    <header className="py-6">
+                        <nav className="flex items-center justify-between">
+                            <div className="flex space-x-4">
+                                <button 
+                                    className={`px-4 py-2 rounded ${section === 'popular' ? 'bg-red-600' : 'bg-gray-700'}`}
+                                    onClick={() => getMovies('popular')}>
+                                    Popular
+                                </button>
+                                <button 
+                                    className={`px-4 py-2 rounded ${section === 'top_rated' ? 'bg-red-600' : 'bg-gray-700'}`}
+                                    onClick={() => getMovies('top_rated')}>
+                                    Top Rated
+                                </button>
+                                <button 
+                                    className={`px-4 py-2 rounded ${section === 'upcoming' ? 'bg-red-600' : 'bg-gray-700'}`}
+                                    onClick={() => getMovies('upcoming')}>
+                                    Upcoming
+                                </button>
+                            </div>
+                            <div className="flex items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search movies..."
+                                    className="px-4 py-2 rounded bg-gray-700 text-white"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value);
+                                        searchMovies(e.target.value);
+                                    }}
+                                />
+                            </div>
+                        </nav>
+                    </header>
+
+                    {/* Featured Movie Carousel */}
+                    {!selectedMovie && featuredMovies.length > 0 && (
+                        <div className="relative h-96 mb-8 rounded-lg overflow-hidden">
+                            <img 
+                                src={`${IMG_PATH}${featuredMovies[currentFeatured].backdrop_path}`}
+                                alt={featuredMovies[currentFeatured].title}
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black">
+                                <h2 className="text-3xl font-bold">{featuredMovies[currentFeatured].title}</h2>
+                                <p className="mt-2">{featuredMovies[currentFeatured].overview}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Movie Details */}
+                    {selectedMovie && (
+                        <div className="mb-8">
+                            <button 
+                                onClick={() => setSelectedMovie(null)}
+                                className="mb-4 px-4 py-2 bg-red-600 rounded">
+                                Back to Movies
+                            </button>
+                            <div className="flex flex-col md:flex-row gap-8">
+                                <img 
+                                    src={`${IMG_PATH}${selectedMovie.poster_path}`}
+                                    alt={selectedMovie.title}
+                                    className="w-full md:w-1/3 rounded"
+                                />
+                                <div>
+                                    <h2 className="text-3xl font-bold mb-4">{selectedMovie.title}</h2>
+                                    <p className="text-gray-300 mb-4">{selectedMovie.overview}</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <h3 className="font-bold">Release Date</h3>
+                                            <p>{selectedMovie.release_date}</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold">Rating</h3>
+                                            <p>{selectedMovie.vote_average}/10</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold">Runtime</h3>
+                                            <p>{selectedMovie.runtime} minutes</p>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold">Budget</h3>
+                                            <p>${selectedMovie.budget?.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Movie Grid */}
+                    {!selectedMovie && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {movies.map(movie => (
+                                <div 
+                                    key={movie.id}
+                                    className="cursor-pointer transform hover:scale-105 transition-transform"
+                                    onClick={() => getMovieDetails(movie.id)}>
+                                    <img 
+                                        src={`${IMG_PATH}${movie.poster_path}`}
+                                        alt={movie.title}
+                                        className="w-full rounded"
+                                    />
+                                    <h3 className="mt-2 font-semibold">{movie.title}</h3>
+                                    <div className="flex items-center mt-1">
+                                        <i className="bi bi-star-fill text-yellow-400 mr-1"></i>
+                                        <span>{movie.vote_average}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
